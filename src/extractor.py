@@ -62,15 +62,24 @@ class GunplaPartsExtractor:
         self,
         api_key: Optional[str] = None,
         model_name: Optional[str] = None,
+        system_instruction: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        temperature: float = 0.1,
     ):
         """イニシャライザ。
 
         Args:
             api_key: Gemini APIキー。省略時は .env または環境変数から読み込む。
             model_name: 使用するモデル名。省略時は settings.DEFAULT_MODEL ('gemini-2.5-flash')。
+            system_instruction: システムプロンプト。省略時は SYSTEM_INSTRUCTION（精度評価でプロンプトを差し替えるため）。
+            user_prompt: ユーザープロンプト。省略時は USER_PROMPT。
+            temperature: 生成時の温度。再現性と正確性のため既定は低温度の 0.1。
         """
         self.api_key = api_key or settings.validate_api_key()
         self.model_name = model_name or settings.DEFAULT_MODEL
+        self.system_instruction = system_instruction or SYSTEM_INSTRUCTION
+        self.user_prompt = user_prompt or USER_PROMPT
+        self.temperature = temperature
         self.client = genai.Client(api_key=self.api_key)
 
     def extract_from_image(
@@ -87,6 +96,24 @@ class GunplaPartsExtractor:
         Returns:
             PartsOrderResult: 重複排除・ソートされたパーツ一覧
         """
+        raw_parts = self.extract_raw_parts(image_path)
+
+        # 重複排除と自然順ソートを実施
+        result = PartsOrderResult.from_raw_parts(
+            raw_parts=raw_parts,
+            sum_quantities=sum_quantities,
+        )
+        return result
+
+    def extract_raw_parts(self, image_path: Path | str) -> list[PartItem]:
+        """画像ファイルからパーツ一覧を抽出し、重複排除・ソート前の生の結果を返す。
+
+        Args:
+            image_path: 画像ファイルのパス
+
+        Returns:
+            list[PartItem]: Gemini が返したままの順序・重複を含むパーツリスト
+        """
         path = Path(image_path)
         # 画像の前処理（EXIF回転補正、サイズ調整）
         _, image_bytes, mime_type = load_and_preprocess_image(path)
@@ -94,14 +121,14 @@ class GunplaPartsExtractor:
         # Gemini API のリクエスト構築
         contents = [
             types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-            USER_PROMPT,
+            self.user_prompt,
         ]
 
         config = types.GenerateContentConfig(
-            system_instruction=SYSTEM_INSTRUCTION,
+            system_instruction=self.system_instruction,
             response_mime_type="application/json",
             response_schema=PartsExtractionResponse,
-            temperature=0.1,  # 再現性と正確性のために低温度
+            temperature=self.temperature,
         )
 
         response = self.client.models.generate_content(
@@ -119,9 +146,4 @@ class GunplaPartsExtractor:
             parsed_data = PartsExtractionResponse.model_validate_json(response.text)
             raw_parts = parsed_data.parts
 
-        # 重複排除と自然順ソートを実施
-        result = PartsOrderResult.from_raw_parts(
-            raw_parts=raw_parts,
-            sum_quantities=sum_quantities,
-        )
-        return result
+        return raw_parts

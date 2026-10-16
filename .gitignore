@@ -25,6 +25,14 @@ data/output/*
 data/sample_images/*
 !data/sample_images/.gitkeep
 
+# Evaluation data (説明書の写真は著作物なので公開リポジトリに上げない)
+data/eval/images/*
+!data/eval/images/.gitkeep
+data/eval/labels/*
+!data/eval/labels/.gitkeep
+data/eval/runs/*
+!data/eval/runs/.gitkeep
+
 # IDE & OS
 .vscode/
 .idea/

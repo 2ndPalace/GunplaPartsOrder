@@ -1,0 +1,17 @@
+[project]
+name = "gunpla-parts-order"
+version = "0.1.0"
+description = "ガンプラ説明書画像からパーツ番号を抽出し、部品通販の注文入力を半自動化するツール"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "google-genai>=1.0.0",
+    "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pillow>=10.0.0",
+    "playwright>=1.40.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
